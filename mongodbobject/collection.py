@@ -5,17 +5,13 @@ from doclist import DocList
 
 # patch DBRef to allow lazy retrieval of referenced docs
 def get(self, name):
-    return getattr(Doc(
-        self.collection,
-        db[self.collection].find_one(self.id).to_dict()
-    ), name)
+    return getattr(Doc(self.collection, db[self.collection].find_one(self.id).to_dict()), name)
 DBRef.__getattr__ = get
 
 class MetaModel(type):
     def __new__(mcs, name, bases, dict):
         model = type.__new__(mcs, name, bases, dict)
         model._name = name
-        #model._db = env.mongo
         return model
 
 class Collection(object):
@@ -26,7 +22,7 @@ class Collection(object):
 
     @classmethod
     def _db(cls):
-        return cls._db
+        return cls._connection
 
     @classmethod
     def new(cls, data={}):

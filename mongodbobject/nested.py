@@ -1,25 +1,27 @@
-class Nested(object):
-    """Nested represents a dumb object, that converts a given dict 
-    to internal attributes. There are several ways to map a dict to
-    an object.
-    
-    This one is based on my question at stackoverflow:
-    http://stackoverflow.com/questions/1305532/convert-python-dict-to-object
-    """
-    
-    
-    def __init__(self, d={}):
-        """Convert dict to class attributes.
-        """
-        
-        for a, b in d.items():
-            # handle lists and tuples
-            if isinstance(b, (list, tuple)):
-                setattr(self, a, 
-                    [Nested(x) if isinstance(x, dict) else x for x in b])
-            # the rest
-            else:
-                setattr(self, a, Nested(b) if isinstance(b, dict) else b)
+class Nested(dict):
+    """Translates dictionary keys to instance attributes"""
 
-        def __repr__(self):
-            return self.__dict__.__repr__()
+    def __init__(self, *args, **kwargs):
+        """ Init dict, then convert included dicts to Nested.
+        All dicts in lists and tuples are converted too.
+        """
+        dict.__init__(self, *args, **kwargs)
+
+        for a, b in self.iteritems():
+            if isinstance(b, (list, tuple)):
+                dict.__setitem__(self, a, [Nested(x) if isinstance(x, dict) else x for x in b])
+            else:
+                dict.__setitem__(self, a, Nested(b) if isinstance(b, dict) else b)
+
+    def __setattr__(self, k, v):
+        dict.__setitem__(self, k, v)
+
+    def __delattr__(self, k):
+        dict.__delitem__(self, k)
+
+    def __getattribute__(self, k):
+        try:
+            return dict.__getitem__(self, k)
+        except KeyError:
+            return dict.__getattribute__(self, k)
+
