@@ -25,11 +25,10 @@ class Collection(object):
         return cls._connection
 
     @classmethod
-    def new(cls, data={}):
+    def new(cls, *args, **kwargs):
         """Return empty document, with preset collection.
         """
-
-        return Doc(cls, data)
+        return Doc(cls, *args, **kwargs)
 
     @classmethod
     def _parse_query(cls, kwargs):
@@ -173,3 +172,4 @@ class Collection(object):
             return None
 
         return Doc(cls, docs)
+
