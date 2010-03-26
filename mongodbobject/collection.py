@@ -5,7 +5,7 @@ from doclist import DocList
 
 # patch DBRef to allow lazy retrieval of referenced docs
 def get(self, name):
-    return getattr(Doc(self.collection, db[self.collection].find_one(self.id).to_dict()), name)
+    return getattr(Doc(self.collection, db[self.collection].find_one(self.id)), name)
 DBRef.__getattr__ = get
 
 class MetaModel(type):

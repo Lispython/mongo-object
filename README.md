@@ -31,7 +31,7 @@ similar.
 
 ### Installation
 
-    git clone git://github.com/marcboeker/mongodb-object.git
+    git clone git://github.com/Deepwalker/mongodb-object.git
     cd mongodb-object
     sudo python setup.py install
     
