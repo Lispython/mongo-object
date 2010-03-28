@@ -1,6 +1,5 @@
 import pymongo
 from pymongo.dbref import DBRef
-from doc import Doc
 from doclist import DocList
 
 # patch DBRef to allow lazy retrieval of referenced docs
@@ -8,30 +7,22 @@ def get(self, name):
     return getattr(Doc(self.collection, db[self.collection].find_one(self.id)), name)
 DBRef.__getattr__ = get
 
-class MetaModel(type):
-    def __new__(mcs, name, bases, dict):
-        model = type.__new__(mcs, name, bases, dict)
-        model._name = name
-        return model
-
-class Collection(object):
+class Manager(object):
     """Represents all methods a collection can have. To create a new
     document in a collection, call new().
     """
-    __metaclass__ = MetaModel
+    def __init__(self, connection, model_or_class):
+        "Store db connection and model or model class"
+        if isinstance(model_or_class, type):
+            self.model_class = model_or_class
+            self.model = None
+        else:
+            self.model_class = model_or_class.__class__
+            self.model = model_or_class
 
-    @classmethod
-    def _db(cls):
-        return cls._connection
-
-    @classmethod
-    def new(cls, *args, **kwargs):
-        """Return empty document, with preset collection.
-        """
-        return Doc(cls, *args, **kwargs)
-
-    @classmethod
-    def _parse_query(cls, kwargs):
+        self._db = connection
+        
+    def _parse_query(self, kwargs):
         """Parse argument list into mongo query.
 
         Examples:
@@ -60,8 +51,7 @@ class Collection(object):
             q[key] = v
         return q
 
-    @classmethod
-    def _parse_update(cls, kwargs):
+    def _parse_update(self, kwargs):
         """Parse update arguments into mongo update dict.
 
         Examples:
@@ -70,7 +60,6 @@ class Collection(object):
             (set__friends=['mike'])  =>  {'$set': {'friends': ['mike']}}
             (push__friends='john')  =>  {'$push': {'friends': 'john'}}
         """
-
         q = {}
         op_list = {}
         # iterate over kwargs
@@ -102,21 +91,19 @@ class Collection(object):
 
         return q
 
-    @classmethod
-    def find_one(cls, **kwargs):
+    def find_one(self, **kwargs):
         """Find one single document. Mainly this is used to retrieve
         documents by unique key.
         """
 
-        docs = cls._db()[self._name].find_one(cls._parse_query(kwargs))
+        doc = self._db[self.model_class._name].find_one(self._parse_query(kwargs))
 
-        if docs is None:
+        if doc is None:
             return None
 
-        return Doc(self, docs.to_dict())
+        return self.model_class(self, docs.to_dict())
 
-    @classmethod
-    def query(cls, **kwargs):
+    def query(self, **kwargs):
         """This method is used to first say which documents should be
         affected and later what to do with these documents. They can be
         removed or updated after they have been selected.
@@ -126,37 +113,34 @@ class Collection(object):
         c.query(name='jack').update(set__name='john')
         """
 
-        class RemoveUpdateHandler(Collection):
-            def __init__(self, collection, query):
-                self._db = collection._db()
-                self._collection = collection._name
+        class RemoveUpdateHandler(Manager):
+            def __init__(self, manager, query):
+                self.model_class = manager.model_class
                 self.__query = query
 
             def remove(self):
-                self._db()[self._collection].remove(self.__query)
+                self._db[self.model_class._name].remove(self.__query)
 
             def update(self, **kwargs):
-                self._db()[self._collection].update(
+                self._db[self.model_class._name].update(
                     self.__query,
                     self._parse_update(kwargs)
                 )
 
         # return handler
-        return RemoveUpdateHandler(cls, cls._parse_query(kwargs))
+        return RemoveUpdateHandler(self, self._parse_query(kwargs))
 
-    @classmethod
-    def find(cls, **kwargs):
+    def find(self, **kwargs):
         """Find documents based on query using the django query syntax.
         See _parse_query() for details.
         """
 
         return DocList(
-            cls,
-            cls._db()[cls._name].find(cls._parse_query(kwargs))
+            self,
+            self._db[self.model_class._name].find(self._parse_query(kwargs))
         )
 
-    @classmethod
-    def find_one(cls, **kwargs):
+    def find_one(self, **kwargs):
         """Find one single document. Mainly this is used to retrieve
         documents by unique key.
         """
@@ -164,12 +148,38 @@ class Collection(object):
         if '_id' in kwargs:
             args = pymongo.objectid.ObjectId(str(kwargs['_id']))
         else:
-            args = cls._parse_query(kwargs)
+            args = self._parse_query(kwargs)
 
-        docs = cls._db()[cls._name].find_one(args)
+        docs = self._db[self.model_class._name].find_one(args)
 
         if docs is None:
             return None
 
-        return Doc(cls, docs)
+        return self.model_class(docs)
+
+    def save(self, model):
+        """Save document to collection. 
+        If document is new, set generated ID to document _id.
+        """
+        model._id = self._db[self.model_class._name].save(model)
+        return model._id
+        
+    def delete(self, model):
+        "Remove document from collection if a document id exists."
+        if '_id' in model:
+            del model['_id']
+            return self._db[self.model_class._name].remove({'_id': model._id})
+
+    # Aliases        
+    def add(self, model):
+        return self.save(model)
+
+    def all(self):
+        return self.find()
+
+    def first(self):
+        return self.find_one()
+
+    def filter_by(self, **kwargs):
+        return self.find(**kwargs)
 
