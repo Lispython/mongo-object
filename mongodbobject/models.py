@@ -8,15 +8,19 @@ class HandyDict(dict):
 
         dict.__init__(self, *args, **kwargs)
 
-        # TODO dont cover all situations
         for a, b in self.items():
-            if isinstance(b, (list, tuple)):
-                dict.__setitem__(self, a, [HandyDict(x) if isinstance(x, dict) else x for x in b])
-            else:
-                dict.__setitem__(self, a, HandyDict(b) if isinstance(b, dict) else b)
+            self._update(a, b)
+
+    def _update(self, k, v):
+        "Convert all dicts in v to HandyDict"
+        # TODO doesnt cover all situations
+        if isinstance(v, (list, tuple)):
+            dict.__setitem__(self, k, [HandyDict(x) if isinstance(x, dict) else x for x in v])
+        else:
+            dict.__setitem__(self, k, HandyDict(v) if isinstance(v, dict) else v)
 
     def __setattr__(self, k, v):
-        dict.__setitem__(self, k, v)
+        self._update(k, v)
 
     def __delattr__(self, k):
         dict.__delitem__(self, k)
