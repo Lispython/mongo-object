@@ -1,4 +1,4 @@
-from manager import Manager
+from pymongo.dbref import DBRef
 
 class HandyDict(dict):
     "Smart dict with handy access to dict elements"
@@ -11,13 +11,17 @@ class HandyDict(dict):
         for a, b in self.items():
             self._update(a, b)
 
+    def _convert(self, v):
+        "Convert value"
+        if isinstance(v, list):
+            return [self._convert(x) for x in v]
+        elif isinstance(v, dict):
+            return HandyDict(v)
+        return v
+
     def _update(self, k, v):
         "Convert all dicts in v to HandyDict"
-        # TODO doesnt cover all situations
-        if isinstance(v, (list, tuple)):
-            dict.__setitem__(self, k, [HandyDict(x) if isinstance(x, dict) else x for x in v])
-        else:
-            dict.__setitem__(self, k, HandyDict(v) if isinstance(v, dict) else v)
+        dict.__setitem__(self, k, self._convert(v))
 
     def __setattr__(self, k, v):
         self._update(k, v)
@@ -41,6 +45,13 @@ class Model(HandyDict):
     "The Doc class represents a single document and its features."
     __metaclass__ = MetaModel
     
+    def _convert(self, v):
+        "Add DBRef convertion to HandyDict._convert"
+        if isinstance(v, Model):
+            return DBRef(self._name, v._id)
+        else:
+            return HandyDict._convert(self, v)
+
     def id(self):
         return str(self._id)
 
