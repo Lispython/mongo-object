@@ -1,4 +1,20 @@
 from pymongo.dbref import DBRef
+from errors import DatabaseError
+
+class MongoModels(object):
+    "Singleton class for keep models information"
+    models = {}
+
+    @classmethod
+    def add(cls, model):
+        if model._name in cls.models:
+            raise DatabaseError('Model duplications. Use prefix for overide that')
+        print 'Add model', model
+        cls.models[model._name] = model
+
+    @classmethod
+    def dereference(cls, db, dbref):
+        return cls.models[dbref.collection](db.dereference(dbref))
 
 class HandyDict(dict):
     "Smart dict with handy access to dict elements"
@@ -15,8 +31,13 @@ class HandyDict(dict):
         "Convert value"
         if isinstance(v, list):
             return [self._convert(x) for x in v]
+
+        if isinstance(v, Model):
+            return DBRef(v._name, v._id, v._database_name)
+
         elif isinstance(v, dict):
             return HandyDict(v)
+
         return v
 
     def _update(self, k, v):
@@ -36,22 +57,31 @@ class HandyDict(dict):
             return dict.__getattribute__(self, k)
 
 class MetaModel(type):
+    "Modify Model classes"
+
     def __new__(mcs, name, bases, dict):
+        "Save name of model, prefix, append it to MongoModels."
+
+        base_model = dict.get('_base_model', False) # Save flag
+        if base_model:
+            del dict['_base_model'] # Clear flag to childs
+
         model = type.__new__(mcs, name, bases, dict)
-        model._name = name
+        model._name = model._prefix + '_' + name if model._prefix else name
+
+        if not base_model:
+            MongoModels.add(model) 
+
         return model
 
 class Model(HandyDict):
-    "The Doc class represents a single document and its features."
+    "The Model class represents a single document and its features."
     __metaclass__ = MetaModel
+    _database_name = None
+    _prefix = '' # prepend collection name
+    _base_model = True # base models are not in fact really models
     
-    def _convert(self, v):
-        "Add DBRef convertion to HandyDict._convert"
-        if isinstance(v, Model):
-            return DBRef(self._name, v._id)
-        else:
-            return HandyDict._convert(self, v)
-
+    @property
     def id(self):
         return str(self._id)
 

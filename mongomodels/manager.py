@@ -1,11 +1,6 @@
 import pymongo
-from pymongo.dbref import DBRef
 from doclist import DocList
-
-# TODO patch DBRef to allow lazy retrieval of referenced docs
-# def get(self, name):
-#     return getattr(Doc(self.collection, db[self.collection].find_one(self.id)), name)
-# DBRef.__getattr__ = get
+from models import MongoModels
 
 class Manager(object):
     """Represents all methods a collection can have. To create a new
@@ -169,6 +164,9 @@ class Manager(object):
         if '_id' in model:
             self._db[self.model_class._name].remove({'_id': model._id})
             del model['_id']
+
+    def dereference(self, dbref):
+        return MongoModels.dereference(self._db, dbref) 
 
     # Aliases        
     def add(self, model):
