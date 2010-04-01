@@ -27,6 +27,8 @@ class ScMetaModel(MetaModel):
         model.__table__ = classname
         model.objects = ScManager(model)
 
+        model.Meta.update()
+
         return model
 
 class ScMongoModel(Model):

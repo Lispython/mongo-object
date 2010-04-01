@@ -49,3 +49,7 @@ class DocList(object):
             return self._manager.model_class(self._items.next())
         except StopIteration:
             raise StopIteration
+
+    def list(self):
+        return list(self)
+
