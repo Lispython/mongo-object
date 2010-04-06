@@ -1,6 +1,7 @@
 "Define Query class"
 
 import pymongo
+from doclist import DocList
 
 def parse_query(kwargs):
     """Parse argument list into mongo query.
@@ -74,8 +75,7 @@ def parse_update(kwargs):
     print 'parsed update query', q
     return q
 
-# TODO make it usable
-class Query(object):
+class Query(DocList):
     """Query - implement query atom"""
 
     def __init__(self, manager, query, **kwargs):
@@ -87,14 +87,20 @@ class Query(object):
                 if isinstance(self._query[k], dict):
                     self._query[k].update(v)
                     continue
-
             self._query[k] = v
 
-    def find(self, **kwargs):
-        return Query(manager, self.query, **kwargs)
+        self._litems = None
 
-    def find_one(self, **kwargs):
-        return self._manager.find_one(**kwargs)
+    def find(self, **kwargs):
+        return Query(self._manager, self._query, **kwargs)
+
+    def remove(self):
+        "Remove all objects filtered by query chain"
+        self._manager._remove(self._query)
+
+    def update(self, **kwargs):
+        "Remove all objects filtered by query chain"
+        self._manager._update(self._query, parse_update(kwargs))
 
     @property
     def query(self):

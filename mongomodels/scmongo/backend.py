@@ -27,6 +27,12 @@ class ScMetaModel(MetaModel):
         model.__table__ = classname
         model.objects = ScManager(model)
 
+        # Process fields
+        for field in model._fields.values():
+            # Set order in db
+            if field.order:
+                model.objects.collection.create_index([(field.name, field.order)])
+        
         model.Meta.update()
 
         return model
@@ -49,7 +55,7 @@ class MongoBackend(object):
     def __init__(self, apps, env_class):
         db_name = getattr(env_class.settings, 'MONGO_DB')
         env_class.mongo_connection = pymongo.Connection()[db_name]
-        env_class.mongo_connection.add_son_manipulator(NamespaceInjector())
+        #env_class.mongo_connection.add_son_manipulator(NamespaceInjector())
 
         # Try loading models from app's models.py
         for app, config in apps.iteritems():

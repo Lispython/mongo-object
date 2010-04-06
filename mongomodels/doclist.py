@@ -1,3 +1,5 @@
+import pymongo
+
 class DocList(object):
     """Represents a list of documents that are iteratable. 
     Objectifying the documents is lazy. Every doc gets converted to 
@@ -7,8 +9,15 @@ class DocList(object):
         """Initialize DocList using the manager it belongs to and
         the items as iterator.
         """
-        self._items = items
+        self._litems = items
         self._manager = manager
+
+    @property
+    def _items(self):
+        """For use in query"""
+        if self._litems == None:
+            self._litems = self._manager._find(self._query)
+        return self._litems
     
     def __iter__(self):
         """Iterator
@@ -18,7 +27,7 @@ class DocList(object):
     def skip(self, num):
         """Skip 'num' docs starting at the beginning.
         """
-        return DocList(self._manager, self._items.skip(num))
+        return DocList(self._manager, self._items().skip(num))
         
     def limit(self, num):
         """Limit result list to 'num' docs.
@@ -31,6 +40,12 @@ class DocList(object):
         """
         sort = [(k.replace('__', '.'), v) for k, v in kwargs.items()]
         return DocList(self._manager, self._items.sort(sort))
+
+    def hint(self, *fields):
+        """Make hint to DB.
+        Use DocList.hint(Model.field1, Model.field2) form"""
+        hint = [(f.name, f.order) for f in fields]
+        return DocList(self._manager, self._items.hint(hint))
         
     def __len__(self):
         """Number of results.

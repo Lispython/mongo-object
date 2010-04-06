@@ -20,6 +20,7 @@ class MongoModels(object):
 
 class HandyDict(dict):
     "Smart dict with handy access to dict elements"
+
     def __init__(self, *args, **kwargs):
         """Init dict, then convert included dicts to BaseDoc.
         All dicts in lists and tuples are converted too."""
@@ -54,14 +55,6 @@ class HandyDict(dict):
 
     def __getattr__(self, k):
         return dict.__getitem__(self, k)
-
-# XXX Seems to work without this
-#    def __getattribute__(self, k):
-#        print "Invoke Model getattr", k
-#        try:
-#            return dict.__getitem__(self, k)
-#        except KeyError:
-#            return dict.__getattribute__(self, k)
 
 
 class MetaModel(type):
@@ -109,6 +102,14 @@ class Model(HandyDict):
     _prefix = '' # prepend collection name
     _base_model = True # base models are not in fact really models
     
+    def __init__(self, *args, **kwargs):
+        """
+        Ensure that all fields prepared.
+        """
+        super(Model, self).__init__(*args, **kwargs)
+        for field in self._fields.values():
+            field.process_model(self)
+
     @property
     def id(self):
         return str(self._id)

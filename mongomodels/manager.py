@@ -1,7 +1,7 @@
 import pymongo
 from doclist import DocList
 from models import MongoModels
-from query import parse_update, parse_query
+from query import Query, parse_update, parse_query
 
 class Manager(object):
     """Represents all methods a collection can have. To create a new
@@ -9,6 +9,7 @@ class Manager(object):
     """
     def __init__(self, connection, model_or_class):
         "Store db connection and model or model class"
+
         if isinstance(model_or_class, type):
             self.model_class = model_or_class
             self.model = None
@@ -17,7 +18,26 @@ class Manager(object):
             self.model = model_or_class
 
         self._db = connection
+
+    @property
+    def collection(self):
+        "Return collection"
+
+        return self._db[self.model_class._name]
         
+    def _remove(self, query_dict):
+        "Get dict and remove elements in collection"
+
+        self.collection.remove(query_dict)
+    
+    def _update(self, query_dict, update_dict):
+        "Get dicts and update elements in collection"
+
+        self.collection.update(query_dict, update_dict)
+
+    def _find(self, query_dict):
+        return self.collection.find(query_dict)
+
     def query(self, **kwargs):
         """This method is used to first say which documents should be
         affected and later what to do with these documents. They can be
@@ -28,33 +48,14 @@ class Manager(object):
         c.query(name='jack').update(set__name='john')
         """
 
-        class RemoveUpdateHandler(Manager):
-            def __init__(self, manager, query):
-                self.manager = manager
-                self.model_class = manager.model_class
-                self.__query = query
-
-            def remove(self):
-                self.manager._db[self.model_class._name].remove(self.__query)
-
-            def update(self, **kwargs):
-                self.manager._db[self.model_class._name].update(
-                    self.__query,
-                    parse_update(kwargs)
-                )
-
-        # return handler
-        return RemoveUpdateHandler(self, parse_query(kwargs))
+        return Query(self, parse_query(kwargs))
 
     def find(self, **kwargs):
         """Find documents based on query using the django query syntax.
         See parse_query() for details.
         """
 
-        return DocList(
-            self,
-            self._db[self.model_class._name].find(parse_query(kwargs))
-        )
+        return Query(self, {}, **kwargs)
 
     def find_one(self, **kwargs):
         """Find one single document. Mainly this is used to retrieve
@@ -66,12 +67,12 @@ class Manager(object):
         else:
             args = parse_query(kwargs)
 
-        docs = self._db[self.model_class._name].find_one(args)
+        doc = self.collection.find_one(args)
 
-        if docs is None:
+        if doc is None:
             return None
 
-        return self.model_class(docs)
+        return self.model_class(doc)
 
     def save(self, model):
         """Save document to collection. 
