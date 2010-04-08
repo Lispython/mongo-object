@@ -26,7 +26,10 @@ class Field(object):
     def process_model(self, model):
         # Set field default value
         if self.default != None and not self.name in model:
-            model[self.name] = self.default
+            if isinstance(self.default, (list, dict)):
+                model[self.name] = self.type(self.default)
+            else:
+                model[self.name] = self.default
 
     def __lt__(self, other):
         return CompareOp(self.name, '<', other)

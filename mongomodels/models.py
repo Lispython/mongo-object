@@ -112,7 +112,20 @@ class Model(HandyDict):
 
     @property
     def id(self):
+        "Return _id"
         return str(self._id)
+
+    def pre_save(self):
+        "Called before save to db"
+        pass
+
+    def post_save(self):
+        "Called after save to db"
+        pass
+
+    def pre_delete(self):
+        "Called before deleting"
+        pass
 
     def __repr__(self):
         return '%s(%s)' % (self._name, dict.__repr__(self))

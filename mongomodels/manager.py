@@ -78,11 +78,14 @@ class Manager(object):
         """Save document to collection. 
         If document is new, set generated ID to document _id.
         """
+        model.pre_save()
         model._id = self._db[self.model_class._name].save(model)
+        model.post_save()
         return model._id
         
     def delete(self, model):
-        "Remove document from collection if a document id exists."
+        "Remove document from collection if document id exists."
+        model.pre_delete()
         if '_id' in model:
             self._db[self.model_class._name].remove({'_id': model._id})
             del model['_id']
