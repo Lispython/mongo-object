@@ -18,6 +18,15 @@ class MongoModels(object):
         return cls.models[dbref.collection](db.dereference(dbref))
 
 
+class AutoDBRef(DBRef):
+    def __init__(self, manager, *args, **kwargs):
+        super(AutoDBRef, self).__init__(*args, **kwargs)
+        self._manager = manager
+
+    def get(self):
+        return self._manager.dereference(self)
+
+
 class HandyDict(dict):
     "Smart dict with handy access to dict elements"
 

@@ -2,7 +2,7 @@
 
 ## About
 
-mongodb-object is a cocktail of the Django ORM mixed with JavaScript dot 
+mongomodels is a cocktail of the Django ORM mixed with JavaScript dot 
 object notation. Every document is returned as object that can be traversed 
 using the objects attributes. It is based on the awesome pymongo lib by
 mike from mongodb.
@@ -19,7 +19,7 @@ can now be accessed like this
    
     >>> print doc.name
     john
-    >>> print friends[0]
+    >>> print doc.friends[0]
     mike
     >>> print doc.me.age
     24
@@ -41,10 +41,10 @@ Let's start with a simple demonstration in the Python interactive console.
 Open a MongoDB connection and start with a mongodb-object collection. The
 collection is the base container for our work with mongodb-object.
 
-    >>> from pymongo import Connection
-    >>> from mongodbobject import Model, Manager
+    >>> import pymongo
+    >>> from mongomodels import Model, Manager
     
-    >>> db = Connection().test_db
+    >>> db = pymongo.Connection().test_db
     >>> class User(Model):
             pass
     >>> manager = Manager(db, User)
@@ -59,8 +59,9 @@ collection it belongs
     >>> doc.person.age = 24
     >>> doc.person.gender = 'male'
     >>> manager.save(doc)
+        ObjectId('4bbeccd863a9f01309000000')
     >>> doc
-    Doc(id=04be8d4a41950c76e8000000)
+    User({'person': {'gender': 'male', 'age': 24}, '_id': ObjectId('4bbeccd863a9f01309000000'), 'name': 'John'})
     
 We can also reference documents on the fly. Retrieval is powered by lazy
 loading. Only when you select an attribute of a referenced document, the
@@ -69,9 +70,10 @@ document will be retrieved.
     >>> doc2 = User()
     >>> doc2.friends = [doc]
     >>> manager.save(doc2)
+    ObjectId('4bbecd3863a9f01309000001')
     >>> doc2.friends
-    [Doc(id=04be8d4a41950c76e8000000)]
-    >>> doc2.friends[0].person.age
+    [DBRef('User', ObjectId('4bbeccd863a9f01309000000'))]
+    >>> doc2.friends[0].get().person.age
     24
     
 ### Finding documents
@@ -80,31 +82,32 @@ As a collection holds all documents, we have to ask the collection when
 we want to find a special document.
 
     >>> manager.find_one(person__age=24)
-    Doc(id=04be8d4a41950c76e8000000)
+    User({u'person': {u'gender': u'male', u'age': 24}, u'_id': ObjectId('4bbeccd863a9f01309000000'), u'name': u'John'})
     >>> manager.find_one(person__age__lt=25)
-    Doc(id=04be8d4a41950c76e8000000)
+    User({u'person': {u'gender': u'male', u'age': 24}, u'_id': ObjectId('4bbeccd863a9f01309000000'), u'name': u'John'})
     >>> manager.find_one(person__age__lt=24)
     None
     >>> manager.find_one(person__age=24, name='john')
-    Doc(id=04be8d4a41950c76e8000000)
+    User({u'person': {u'gender': u'male', u'age': 24}, u'_id': ObjectId('4bbeccd863a9f01309000000'), u'name': u'John'})
     
 As you can see, we emulate the dot notation of embedded documents using
 the __ chars like Django does. We can also append query operators 
 ($lt, $lte, $gt, $gte, $ne, $nin, $in, $all, $size) at the end.
 
 You cannot only query for one document, you can retrieve also a list of
-documents using find() instead of find_one().
+documents using find() instead of find_one(). find(), query() and all() return 
+lazy Query object, and query doesnot actually act on db.
 
-    >>> doc_list = manager.find()
-    >>> doc_list
-    <mongodbobject.doclist.DocList instance at 0x11d5f80>
-    >>> doc_list.count()
+    >>> query = manager.find()
+    >>> query
+    <mongomodels.query.Query object at 0x8893e6c>
+    >>> query.count()
     2
-    >>> for doc in doc_list:
+    >>> for doc in query:
     ...     print doc, doc.keys()
-    ... 
-    Doc(id=c8c88d4a41950c42e9000000) ['name', 'person']
-    Doc(id=c8c88d4a41950c42e9010000) ['friends']
+    ...
+    User({u'person': {u'gender': u'male', u'age': 24}, u'_id': ObjectId('4bbeccd863a9f01309000000'), u'name': u'John'}) [u'person', u'_id', u'name']
+    User({u'_id': ObjectId('4bbecd3863a9f01309000001'), u'friends': [DBRef(u'User', ObjectId('4bbeccd863a9f01309000000'))]}) [u'_id', u'friends']
     
 find() accepts the same parameters as find_one() does.
 
@@ -112,10 +115,10 @@ find() accepts the same parameters as find_one() does.
 
 To do a bulk update or remove, we use the query() method.
 
-    >>> manager.query(name='john').update(set__name='jack')
+    >>> manager.find(name='John').update(set__name='jack')
     >>> manager.find_one(name='jack').name
     jack
-    >>> manager.query(name='jack').remove()
+    >>> manager.find(name='jack').remove()
     >>> manager.find().count()
     1
 
