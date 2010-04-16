@@ -12,27 +12,34 @@ def parse_query(kwargs):
         (comment__rating__lt=10) => {'comment.rating': {'$lt': 10}}
         (user__in=[10, 20]) => {'user': {'$in': [10, 20]}}
     """
+    def to_oid(v):
+        if isinstance(v, list):
+            return [pymongo.objectid.ObjectId(i) for i in v]
+        else:
+            return pymongo.objectid.ObjectId(v)
 
     q = {}
     # iterate over kwargs and build query dict
     for k, v in kwargs.items():
+        if v == None:
+            print 'Warning: None value for %s key.' % k
         # handle query operators
         op = k.split('__')[-1]
-        if op in ('lte', 'gte', 'lt', 'gt', 'ne',
-            'in', 'nin', 'all', 'size'):
+        if op in ('lte', 'gte', 'lt', 'gt', 'ne', 'in', 'nin', 'all', 'size'):
             k = k.rstrip('__' + op)
-            if k == '_id' and isinstance(v, list):
-                v = [pymongo.objectid.ObjectId(i) for i in v]
+            if k == '_id':
+                v = to_oid(v)
+
             v = {'$' + op: v}
 
-        # XXX dunno if we really need this?
-        #if isinstance(v, list)
-        #    v = str(v)
+        elif k == '_id':
+            v = to_oid(v)
 
         # convert django style notation into dot notation
         key = k.replace('__', '.')
         q[key] = v
     return q
+
 
 def parse_update(kwargs):
     """Parse update arguments into mongo update dict.
@@ -74,6 +81,7 @@ def parse_update(kwargs):
 
     print 'parsed update query', q
     return q
+
 
 class Query(DocList):
     """Query - implement query atom"""

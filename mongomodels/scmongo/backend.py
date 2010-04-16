@@ -1,5 +1,5 @@
 from svarga.core.env import env
-from svarga.models import model
+from svarga.db import models
 from svarga.core.metadata import create_metadata
 from svarga.utils.imports import import_module
 
@@ -7,7 +7,7 @@ import pymongo
 from pymongo.son_manipulator import AutoReference, NamespaceInjector
 from mongomodels import Model, Manager, MetaModel
 
-class ScManager(Manager, model.BaseModelManager):
+class ScManager(Manager, models.BaseModelManager):
     "Mix of managers"
     def __init__(self, model_class):
         self.model_class = model_class
