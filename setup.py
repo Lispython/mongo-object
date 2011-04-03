@@ -1,5 +1,13 @@
 #!/usr/bin/env python
 
+"""
+Mongo objects
+------
+Mongoobject is a cocktail of the Django ORM mixed with JavaScript dot object notation.
+Every document is returned as object that can be traversed using the objects attributes.
+It is based on the awesome pymongo lib by mike from mongodb.
+"""
+
 import sys
 import os
 try:
@@ -7,73 +15,76 @@ try:
     has_subprocess = True
 except:
     has_subprocess = False
-import shutil
 
-from ez_setup import use_setuptools
-use_setuptools()
-from setuptools import setup
-from setuptools import Feature
-from distutils.cmd import Command
-from distutils.command.build_ext import build_ext
-from distutils.errors import CCompilerError
-from distutils.errors import DistutilsPlatformError, DistutilsExecError
-from distutils.core import Extension
+from setuptools import Command, setup
 
-import mongodbobject
-
-requirements = []
-try:
-    import pymongo
-except ImportError:
-    requirements.append("pymongo")
-
-version = 0.1
+__version__ = (0, 1, 0)
 
 f = open("README.md")
 try:
     try:
         readme_content = f.read()
     except:
-        readme_content = ""
+        readme_content = __doc__
 finally:
     f.close()
 
 
-class GenerateDoc(Command):
+
+class run_audit(Command):
+    """Audits source code using PyFlakes for following issues:
+        - Names which are used but not defined or used before they are defined.
+        - Names which are redefined without having been used.
+    """
+    description = "Audit source code with PyFlakes"
     user_options = []
 
     def initialize_options(self):
-        pass
+        all = None
 
     def finalize_options(self):
         pass
 
     def run(self):
-        path = "doc/%s" % version
+        try:
+            import pyflakes.scripts.pyflakes as flakes
+        except ImportError:
+            print "Audit requires PyFlakes installed in your system."""
+            sys.exit(-1)
 
-        shutil.rmtree("doc", ignore_errors=True)
-        os.makedirs(path)
-
-        if has_subprocess:
-            subprocess.call(["epydoc", "--config", "epydoc-config", "-o", path])
+        dirs = ['mongodbobject']
+        # Add example directories
+        for dir in []:
+            dirs.append(os.path.join('examples', dir))
+        # TODO: Add test subdirectories
+        warns = 0
+        for dir in dirs:
+            for filename in os.listdir(dir):
+                if filename.endswith('.py') and filename != '__init__.py':
+                    warns += flakes.checkPath(os.path.join(dir, filename))
+        if warns > 0:
+            print ("Audit finished with total %d warnings." % warns)
         else:
-            print """
-`setup.py doc` is not supported for this version of Python.
+            print ("No problems found in sourcecode.")
+    
 
-Please ask in the user forums for help.
-"""
+def run_tests():
+    from runtests import suite
+    return suite()
 
-# thanks to mike from mongodb for the setup.py template
+            
 setup(
     name="mongodbobject",
-    version=version,
+    version=".".join(map(str, __version__)),
     description="Object wrapper for Pymongo",
     long_description=readme_content,
-    author="Alex |  obout.ru",
+    author="Alex",
     author_email="alex@obout.ru",
-    url="http://github.com/marcboeker/mongodb-object",
+    url="https://github.com/Lispython/mongo-object",
     packages=["mongodbobject"],
-    install_requires=requirements,
+    install_requires=[
+        'pymongo'
+        ],
     license="Apache License, Version 2.0",
     #test_suite="nose.collector",
     classifiers=[
@@ -85,4 +96,6 @@ setup(
         "Operating System :: POSIX",
         "Programming Language :: Python",
         "Topic :: Database"],
-    cmdclass={"doc": GenerateDoc})
+    cmdclass={'audit': run_audit},
+    test_suite = '__main__.runtests'
+    )

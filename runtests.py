@@ -16,10 +16,11 @@ class TestMongoModels(unittest.TestCase):
             u'name': u'john',
             u'friends': [u'mike', u'dwight', u'elliot'],
             }
-        self.collection = pymongo.Connection().mongoobject_test_collection
+        self.connection = pymongo.Connection()
+        self.collection = self.connection.mongoobject_test_db
 
     def tearDown(self):
-        pass
+        self.connection.drop_database('mongoobject_test_db')
         
     def testDocumentMethods(self):
         manager = Manager(self.collection, User)
@@ -37,6 +38,11 @@ class TestMongoModels(unittest.TestCase):
         #self.assertEqual(str(document._id), str(document2._id))
         self.assertEqual(document.upper_name(), self.test_dict['name'].upper())
 
+def suite():
+    suite = unittest.TestSuite()
+    suite.addTest(unittest.makeSuite(TestMongoModels))
+    return suite
+    
 
 if __name__ == '__main__':
-    unittest.main()
+    unittest.main(defaultTest = "suite")

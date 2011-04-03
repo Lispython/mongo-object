@@ -3,6 +3,7 @@
 .DS*
 *.pyc
 *.pyd
+.ropeproject
 doc/
 build/
 dist/
